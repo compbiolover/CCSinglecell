@@ -1,98 +1,37 @@
-#' Calculate Median Absolute Deviation (MAD) metric gene lists
+#' Calculate Median Absolute Deviation (MAD) gene rankings
 #'
-#' This function calculates the median absolute deviation (MAD) for each gene
-#' across cells in single-cell RNA sequencing data.
+#' Ranks genes by their expression variability across cells using the median
+#' absolute deviation. Higher MAD indicates more variable expression.
 #'
-#' @param expression_matrix A gene expression matrix with genes as rows and cells as columns
-#' @param parallel Logical indicating whether to use parallel processing (default: FALSE)
-#' @param n_cores Number of cores to use for parallel processing (default: NULL, uses available cores - 1)
-#' @param normalize Whether to normalize the scores of our ranked list of genes (default: TRUE)
+#' @param expression_matrix Numeric matrix with genes as rows and cells as
+#'   columns. Must have row names (gene identifiers).
+#' @param normalize Logical; if `TRUE` (default), scores are normalized to
+#'   sum to 1.
 #'
-#' @return A named numeric vector of normalized or un-normalized MAD values sorted in decreasing order
+#' @return A named numeric vector of MAD values sorted in decreasing order.
+#'   If `normalize = TRUE`, values sum to 1.
 #' @export
 #'
 #' @examples
-#' \dontrun{
-#' mad_genes <- calculate_mad(expression_matrix)
-#' }
-calculate_mad <- function(
-    expression_matrix,
-    parallel = FALSE,
-    n_cores = NULL,
-    normalize = TRUE
-) {
-    # Input validation
-    if (!is.matrix(expression_matrix)) {
-        stop("expression_matrix must be a matrix")
+#' mat <- matrix(rnorm(30), nrow = 3, dimnames = list(paste0("g", 1:3), NULL))
+#' calculate_mad(mat)
+calculate_mad <- function(expression_matrix, normalize = TRUE) {
+  if (!is.matrix(expression_matrix) || !is.numeric(expression_matrix)) {
+    stop("expression_matrix must be a numeric matrix")
+  }
+  if (length(expression_matrix) == 0L) {
+    stop("expression_matrix must not be empty")
+  }
+
+  gene_mads <- apply(expression_matrix, 1L, stats::mad)
+  gene_mads <- sort(gene_mads, decreasing = TRUE)
+
+  if (normalize) {
+    total <- sum(abs(gene_mads))
+    if (total > 0) {
+      gene_mads <- gene_mads / total
     }
+  }
 
-    if (length(expression_matrix) == 0) {
-        stop("expression_matrix must not be empty")
-    }
-
-    # Set up parallel processing if requested
-    if (parallel) {
-        if (
-            !requireNamespace("future", quietly = TRUE) ||
-                !requireNamespace("furrr", quietly = TRUE)
-        ) {
-            warning(
-                "Packages 'future' and 'furrr' are required for parallel processing.
-              Falling back to sequential processing."
-            )
-            parallel <- FALSE
-        } else {
-            # Determine number of cores to use
-            if (is.null(n_cores)) {
-                n_cores <- max(1, parallel::detectCores() - 1)
-            }
-
-            # Set up parallel backend
-            future::plan(future::multicore, workers = n_cores)
-        }
-    }
-
-    # Calculate MAD values
-    if (parallel) {
-        # Parallel implementation using furrr
-        gene_mads <- furrr::future_map_dbl(
-            seq_len(nrow(expression_matrix)),
-            function(i) stats::mad(expression_matrix[i, ]),
-            .options = furrr::furrr_options(seed = TRUE)
-        )
-        names(gene_mads) <- rownames(expression_matrix)
-    } else {
-        # Sequential implementation
-        gene_mads <- purrr::map_dbl(
-            seq_len(nrow(expression_matrix)),
-            function(i) stats::mad(expression_matrix[i, ])
-        )
-        names(gene_mads) <- rownames(expression_matrix)
-    }
-
-    # Rank and normalize
-    if (normalize == TRUE) {
-        ranked_mads <- gene_mads %>%
-            tibble::enframe(name = "gene", value = "mad") %>%
-            dplyr::arrange(dplyr::desc(mad)) %>%
-            dplyr::mutate(mad_normalized = abs(mad) / sum(abs(mad)))
-
-        # Extract the normalized MAD values as a named vector
-        mad_ranking <- ranked_mads$mad_normalized
-        names(mad_ranking) <- ranked_mads$gene
-        # Extract the normalized MAD values as a named vector
-        mad_ranking <- ranked_mads$mad_normalized
-        names(mad_ranking) <- ranked_mads$gene
-    } else {
-        ranked_mads <- gene_mads %>%
-            tibble::enframe(name = "gene", value = "mad") %>%
-            dplyr::arrange(dplyr::desc(mad)) %>%
-            dplyr::mutate(mad_unnormalized = mad)
-
-        # Extract the un-normalized MAD values as a named vector
-        mad_ranking <- ranked_mads$mad_unnormalized
-        names(mad_ranking) <- ranked_mads$gene
-    }
-
-    return(mad_ranking)
+  gene_mads
 }

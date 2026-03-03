@@ -1,144 +1,87 @@
-#' Calculate Switch-like Differential Expression (SwitchDE) gene rankings
+#' Calculate SwitchDE gene rankings
 #'
-#' This function builds Inference of switch-like differential expression along
-#' single-cell RNA sequencing trajectories (switchde) outputs.
-#' Based on the method described in Campbell & Yau (2017): switchde: inference of
-#' switch-like differential expression along single-cell trajectories.
+#' Ranks genes by switch-like differential expression along pseudotime
+#' trajectories using the switchde package (Campbell & Yau, 2017).
 #'
-#' @param denoised_sc A gene expression matrix with genes as rows and cells as columns
-#' @param pseudo_time A numeric vector of pseudotime values for each cell
-#' @param zero_inflated Logical indicating whether to use zero-inflated model (default: FALSE)
-#' @param q_threshold Q-value threshold for filtering significant genes (default: 0.05)
-#' @param parallel Logical indicating whether to use parallel processing (default: FALSE)
-#' @param n_cores Number of cores to use for parallel processing (default: NULL, uses available cores - 1)
-#' @param normalize Logical indicating if the returned scores of genes are normalized? (default: TRUE)
+#' @param expression_matrix Numeric matrix with genes as rows and cells as
+#'   columns.
+#' @param pseudotime Numeric vector of pseudotime values (one per cell), or a
+#'   data.frame with a `"Pseudotime"` column.
+#' @param zero_inflated Logical; use zero-inflated model (default `FALSE`).
+#' @param q_threshold Numeric; q-value cutoff for significance (default 0.05).
+#' @param normalize Logical; if `TRUE` (default), scores are normalized to
+#'   sum to 1.
 #'
-#' @return A named numeric vector of normalized SwitchDE k values sorted by absolute magnitude
-#' @references Campbell KR, Yau C (2017). "switchde: inference of switch-like differential
-#'   expression along single-cell trajectories." Bioinformatics, 33(8), 1241-1242.
-#'   doi:10.1093/bioinformatics/btw798
+#' @return A named numeric vector of SwitchDE k values sorted by absolute
+#'   magnitude. If `normalize = TRUE`, values are absolute and sum to 1.
+#'   Returns `numeric(0)` if no genes pass the threshold.
+#' @references Campbell KR, Yau C (2017). "switchde: inference of switch-like
+#'   differential expression along single-cell trajectories."
+#'   *Bioinformatics*, 33(8), 1241-1242.
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' sde_genes <- switchde_calculator(denoised_sc = expression_matrix, pseudo_time = pseudotime_data, normalize = TRUE)
+#' rankings <- calculate_switchde(expr_mat, pseudotime_vec)
 #' }
-switchde_calculator <- function(
-    denoised_sc,
-    pseudo_time,
+calculate_switchde <- function(
+    expression_matrix,
+    pseudotime,
     zero_inflated = FALSE,
     q_threshold = 0.05,
-    parallel = FALSE,
-    n_cores = NULL,
     normalize = TRUE
 ) {
-    # Input validation
-    if (!is.matrix(denoised_sc)) {
-        stop("denoised_sc must be a matrix")
-    }
+  if (!is.matrix(expression_matrix) || !is.numeric(expression_matrix)) {
+    stop("expression_matrix must be a numeric matrix")
+  }
+  if (length(expression_matrix) == 0L) {
+    stop("expression_matrix must not be empty")
+  }
 
-    if (length(denoised_sc) == 0) {
-        stop("denoised_sc must not be empty")
-    }
-
-    if (!is.numeric(pseudo_time)) {
-        # Check if pseudo_time is a dataframe with a Pseudotime column
-        if (
-            is.data.frame(pseudo_time) &&
-                "Pseudotime" %in% colnames(pseudo_time)
-        ) {
-            pseudo_time <- as.numeric(pseudo_time$Pseudotime)
-        } else {
-            stop(
-                "pseudo_time must be a numeric vector or a dataframe with a 'Pseudotime' column"
-            )
-        }
-    }
-
-    if (length(pseudo_time) != ncol(denoised_sc)) {
-        stop(
-            "Length of pseudo_time must match the number of cells (columns) in denoised_sc"
-        )
-    }
-
-    # Check for required packages
-    if (!requireNamespace("switchde", quietly = TRUE)) {
-        stop("Package 'switchde' is required for this function")
-    }
-
-    if (!requireNamespace("tidyverse", quietly = TRUE)) {
-        stop("Package 'tidyverse' is required for this function")
-    }
-
-    # Set up parallel processing if requested
-    if (parallel) {
-        if (
-            !requireNamespace("future", quietly = TRUE) ||
-                !requireNamespace("furrr", quietly = TRUE)
-        ) {
-            warning(
-                "Packages 'future' and 'furrr' are required for parallel processing.
-              Falling back to sequential processing."
-            )
-            parallel <- FALSE
-        } else {
-            # Determine number of cores to use
-            if (is.null(n_cores)) {
-                if (!requireNamespace("parallel", quietly = TRUE)) {
-                    warning(
-                        "Package 'parallel' is required for auto-detecting cores.
-                  Using 2 cores."
-                    )
-                    n_cores <- 2
-                } else {
-                    n_cores <- max(1, parallel::detectCores() - 1)
-                }
-            }
-
-            # Set up parallel backend
-            future::plan(future::multicore, workers = n_cores)
-        }
-    }
-
-    # Calculate switchde values
-    if (parallel) {
-        # Not implementing parallel version yet as it would require restructuring switchde internals
-        warning(
-            "Parallel processing for switchde is not yet implemented. Using sequential processing."
-        )
-    }
-
-    # Run switchde analysis
-    sde <- switchde::switchde(
-        denoised_sc,
-        pseudo_time,
-        verbose = TRUE,
-        zero_inflated = zero_inflated
-    )
-
-    # Filter by q-value threshold
-    sde_filtered <- dplyr::filter(sde, qval < q_threshold)
-
-    # If no genes pass the threshold, warn and return empty result
-    if (nrow(sde_filtered) == 0) {
-        warning("No genes passed the q-value threshold of ", q_threshold)
-        return(numeric(0))
-    }
-
-    # Order by absolute k value
-    index <- order(abs(sde_filtered$k), decreasing = TRUE)
-    sde_rank <- sde_filtered[index, ]
-
-    # Extract k values as a named vector
-    sde_ranking <- sde_rank$k
-    names(sde_ranking) <- sde_rank$gene
-
-    # Normalize the values
-    if (normalize) {
-        sde_ranking <- abs(sde_ranking) / sum(abs(sde_ranking))
+  # Accept data.frame with Pseudotime column
+  if (is.data.frame(pseudotime)) {
+    if ("Pseudotime" %in% colnames(pseudotime)) {
+      pseudotime <- as.numeric(pseudotime$Pseudotime)
     } else {
-        sde_ranking
+      stop("pseudotime data.frame must contain a 'Pseudotime' column")
     }
+  }
+  if (!is.numeric(pseudotime)) {
+    stop("pseudotime must be numeric")
+  }
+  if (length(pseudotime) != ncol(expression_matrix)) {
+    stop("length(pseudotime) must equal ncol(expression_matrix)")
+  }
 
-    return(sde_ranking)
+  if (!requireNamespace("switchde", quietly = TRUE)) {
+    stop("Package 'switchde' is required. Install from Bioconductor.")
+  }
+
+  sde <- switchde::switchde(
+    expression_matrix,
+    pseudotime,
+    verbose = FALSE,
+    zero_inflated = zero_inflated
+  )
+
+  # Filter by q-value
+  sde <- sde[sde$qval < q_threshold, , drop = FALSE]
+
+  if (nrow(sde) == 0L) {
+    warning("No genes passed the q-value threshold of ", q_threshold)
+    return(numeric(0))
+  }
+
+  # Sort by absolute k value descending
+  sde <- sde[order(abs(sde$k), decreasing = TRUE), ]
+
+  ranking <- sde$k
+  names(ranking) <- sde$gene
+
+  if (normalize) {
+    total <- sum(abs(ranking))
+    if (total > 0) ranking <- abs(ranking) / total
+  }
+
+  ranking
 }
