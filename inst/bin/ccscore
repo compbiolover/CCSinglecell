@@ -1,0 +1,29 @@
+#!/usr/bin/env Rscript
+
+# ccscore - command-line gene scoring for the CcSinglecell package.
+#
+# This is a thin shim: all logic lives in CcSinglecell::run_cli() so it can be
+# unit-tested. Run `ccscore --help` for usage.
+#
+# If the package is installed, this is available at
+#   system.file("bin", "ccscore", package = "CcSinglecell")
+# For development from a source checkout, set R_CCSINGLECELL_SRC to the package
+# root (or run from it) and this will load it with pkgload/devtools.
+
+suppressWarnings(suppressMessages({
+  if (requireNamespace("CcSinglecell", quietly = TRUE)) {
+    library(CcSinglecell)
+  } else {
+    src <- Sys.getenv("R_CCSINGLECELL_SRC", unset = getwd())
+    if (requireNamespace("pkgload", quietly = TRUE)) {
+      pkgload::load_all(src, quiet = TRUE)
+    } else {
+      stop(
+        "CcSinglecell is not installed and 'pkgload' is unavailable. ",
+        "Install the package with install.packages() or devtools::install()."
+      )
+    }
+  }
+}))
+
+CcSinglecell::run_cli()

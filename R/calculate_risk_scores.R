@@ -31,6 +31,11 @@ calculate_risk_scores <- function(cox_df, active_genes, coefficients) {
   if (!is.data.frame(cox_df)) stop("cox_df must be a data.frame")
   if (length(active_genes) == 0L) stop("active_genes must not be empty")
 
+  # Capture survival outcome before column names are sanitised (cleaning
+  # turns `days_to_last_follow_up`/`vital_status` into dotted names).
+  surv_vital <- cox_df$vital_status
+  surv_time <- cox_df$days_to_last_follow_up
+
   # Sanitise column names to match fit_cox_model convention
   clean <- function(x) gsub("[-_/]", ".", x)
   active_genes <- clean(active_genes)
@@ -39,7 +44,8 @@ calculate_risk_scores <- function(cox_df, active_genes, coefficients) {
 
   missing_genes <- setdiff(active_genes, colnames(cox_df))
   if (length(missing_genes) > 0L) {
-    stop("Genes not found in cox_df: ", paste(head(missing_genes, 5), collapse = ", "))
+    stop("Genes not found in cox_df: ",
+         paste(utils::head(missing_genes, 5), collapse = ", "))
   }
 
   expr_mat <- as.matrix(cox_df[, active_genes, drop = FALSE])
@@ -66,8 +72,8 @@ calculate_risk_scores <- function(cox_df, active_genes, coefficients) {
   data.frame(
     risk_score = risk_score,
     risk_group = ifelse(risk_score > median_risk, "high", "low"),
-    vital_status = cox_df$vital_status,
-    time = cox_df$days_to_last_follow_up,
+    vital_status = surv_vital,
+    time = surv_time,
     row.names = rownames(cox_df),
     stringsAsFactors = FALSE
   )

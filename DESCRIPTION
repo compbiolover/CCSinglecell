@@ -1,27 +1,35 @@
 Package: CcSinglecell
 Title: Single-Cell and miRNA Integration for Colorectal Cancer Survival Prediction
-Version: 0.1.0
+Version: 0.2.0
 Authors@R:
     person("Andrew", "Willems", , "awillemscf@gmail.com", role = c("aut", "cre"))
 Description: Uses single-cell RNA-sequencing information and miRNA targeting
     information to improve colorectal cancer survival prediction. Provides
     functions for gene ranking via MAD, SwitchDE, and miRNA metrics, Cox
     proportional hazards modeling, risk score calculation, and metric weight
-    optimization.
+    optimization. A high-level 'score_gene_set()' wrapper, ggplot2
+    visualizations, and a 'ccscore' command-line tool make it easy to score
+    an arbitrary set of genes and visualize the results.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.1
 Imports:
-    stats,
+    ggplot2,
     glmnet,
+    grDevices,
+    stats,
     survival,
-    survminer
+    utils
 Suggests:
-    future,
     furrr,
-    Rmagic,
-    switchde,
+    future,
+    knitr,
     monocle3,
+    rmarkdown,
+    Rmagic,
+    survminer,
+    switchde,
     testthat (>= 3.0.0)
+VignetteBuilder: knitr
 Config/testthat/edition: 3

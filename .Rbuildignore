@@ -1,0 +1,6 @@
+^data-raw$
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^LICENSE$
+^CITATION\.cff$
