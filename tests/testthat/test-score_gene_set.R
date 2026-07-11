@@ -64,6 +64,6 @@ test_that("score_gene_set validates inputs", {
     dimnames = list(paste0("g", 1:40), c("mir1", "mir2")))
   expect_error(
     score_gene_set("g1", expr, mirna_matrix = mir, weights = c(1)),
-    "one value per available metric"
+    "one value per metric"
   )
 })

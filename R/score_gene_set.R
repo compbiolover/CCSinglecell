@@ -75,6 +75,9 @@ score_gene_set <- function(
   }
 
   # --- Compute each available metric genome-wide -----------------------------
+  # score_gene_set is a thin convenience wrapper over the generic multi-omics
+  # engine: it assembles the built-in metric rankings, then delegates the
+  # restrict / renormalize / blend / assemble work to score_rankings().
   rankings <- list()
 
   rankings$mad <- calculate_mad(expression_matrix, normalize = TRUE)
@@ -96,65 +99,5 @@ score_gene_set <- function(
     rankings$mirna <- calculate_mirna(mirna_matrix, normalize = TRUE)
   }
 
-  metrics <- names(rankings)
-
-  # --- Restrict every metric to the requested gene set -----------------------
-  missing_all <- setdiff(genes, unique(unlist(lapply(rankings, names))))
-  if (length(missing_all) > 0L) {
-    warning(
-      length(missing_all), " of ", length(genes),
-      " requested gene(s) were not found in any metric and scored 0 ",
-      "(e.g. ", paste(utils::head(missing_all, 3L), collapse = ", "), ")."
-    )
-  }
-
-  subset_metric <- function(r) {
-    v <- r[genes]
-    v[is.na(v)] <- 0
-    names(v) <- genes
-    if (renormalize) {
-      total <- sum(v)
-      if (total > 0) v <- v / total
-    }
-    v
-  }
-  rankings <- lapply(rankings, subset_metric)
-
-  # --- Resolve weights -------------------------------------------------------
-  n_metrics <- length(rankings)
-  if (is.null(weights)) {
-    weights <- rep(1 / n_metrics, n_metrics)
-  } else {
-    if (length(weights) != n_metrics) {
-      stop(
-        "`weights` must have one value per available metric (",
-        n_metrics, ": ", paste(metrics, collapse = ", "), ")"
-      )
-    }
-    if (any(weights < 0)) stop("`weights` must be non-negative")
-    total <- sum(weights)
-    if (total <= 0) stop("`weights` must not all be zero")
-    weights <- weights / total
-  }
-
-  # --- Combine ---------------------------------------------------------------
-  if (n_metrics == 1L) {
-    combined <- rankings[[1L]]
-  } else {
-    combined <- combine_rankings(rankings, weights)
-  }
-
-  # --- Assemble tidy output --------------------------------------------------
-  out <- data.frame(gene = genes, stringsAsFactors = FALSE)
-  for (m in metrics) {
-    out[[m]] <- unname(rankings[[m]][genes])
-  }
-  out$combined <- unname(combined[genes])
-  out <- out[order(out$combined, decreasing = TRUE), , drop = FALSE]
-  out$rank <- seq_len(nrow(out))
-  rownames(out) <- NULL
-
-  attr(out, "weights") <- stats::setNames(weights, metrics)
-  attr(out, "metrics") <- metrics
-  out
+  score_rankings(genes, rankings, weights = weights, renormalize = renormalize)
 }

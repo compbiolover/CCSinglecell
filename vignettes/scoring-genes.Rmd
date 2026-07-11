@@ -63,6 +63,32 @@ combined score:
 plot_score_contributions(scores, top_n = 15)
 ```
 
+## Scoring across arbitrary omics layers
+
+`score_gene_set()` handles the built-in expression / pseudotime / miRNA
+metrics. To integrate *any* number of omics layers — including your own scoring
+functions — use `score_multiomics()` with one `omics_block()` per layer. Each
+block pairs a data object with a metric, which is either a built-in name
+(`"mad"`, `"mirna"`, `"switchde"`) or a function mapping the data to a named
+gene ranking.
+
+```{r multiomics}
+# Treat the example expression matrix as a second "pseudo-omics" layer scored by
+# a custom metric (per-gene standard deviation) to illustrate the interface.
+blocks <- list(
+  omics_block("variability", expr, "mad"),
+  omics_block("mirna", mirna, "mirna"),
+  omics_block("dispersion", expr, function(m) sort(apply(m, 1, sd), decreasing = TRUE))
+)
+mo <- score_multiomics(genes, blocks)
+head(mo)
+```
+
+The combining machinery (`combine_rankings()`, `optimize_weights()`) is no
+longer capped at three metrics, so methylation, CNV, or proteomics layers plug
+in the same way. See `ROADMAP.md` for the planned learned-integration and
+regulatory-activity backends.
+
 ## From the command line
 
 The same workflow is available as a `ccscore` executable installed with the

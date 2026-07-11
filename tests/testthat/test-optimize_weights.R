@@ -29,7 +29,7 @@ test_that("combine_rankings merges three rankings", {
 })
 
 test_that("combine_rankings validates inputs", {
-  expect_error(combine_rankings(list(c(A = 1)), c(1)), "2 or 3")
+  expect_error(combine_rankings(list(c(A = 1)), c(1)), "two or more")
   expect_error(
     combine_rankings(list(c(A = 1), c(B = 1)), c(1)),
     "same length"
@@ -66,5 +66,44 @@ test_that("optimize_weights returns correct grid for 3 metrics", {
 })
 
 test_that("optimize_weights validates input", {
-  expect_error(optimize_weights(list(c(A = 1)), step_size = 0.5), "2 or 3")
+  expect_error(optimize_weights(list(c(A = 1)), step_size = 0.5), "two or more")
+})
+
+test_that("combine_rankings handles more than three metrics", {
+  r1 <- c(A = 1, B = 0)
+  r2 <- c(B = 1, C = 0)
+  r3 <- c(C = 1, D = 0)
+  r4 <- c(D = 1, A = 0)
+  result <- combine_rankings(list(r1, r2, r3, r4), rep(0.25, 4))
+  expect_true(all(c("A", "B", "C", "D") %in% names(result)))
+  expect_equal(unname(sort(result)), rep(0.25, 4), tolerance = 1e-10)
+})
+
+test_that("optimize_weights generalises to N metrics via a simplex grid", {
+  rankings <- list(
+    c(A = 0.5, B = 0.5),
+    c(B = 0.5, C = 0.5),
+    c(A = 0.3, C = 0.7),
+    c(A = 0.2, D = 0.8)
+  )
+  grid <- optimize_weights(rankings, step_size = 0.5)
+  expect_true(all(c("w1", "w2", "w3", "w4") %in% names(grid)))
+  wsum <- rowSums(as.matrix(grid[, c("w1", "w2", "w3", "w4")]))
+  expect_true(all(abs(wsum - 1) < 1e-10))
+  # simplex_grid(4, 0.5): compositions of 2 into 4 parts = choose(5,3) = 10
+  expect_equal(nrow(grid), 10L)
+})
+
+test_that("optimize_weights guards against a combinatorial explosion", {
+  rankings <- replicate(6, c(A = 0.5, B = 0.5), simplify = FALSE)
+  expect_error(
+    optimize_weights(rankings, step_size = 0.02, max_combos = 1000L),
+    "exceeding max_combos"
+  )
+})
+
+test_that("simplex_grid rows are non-negative and sum to 1", {
+  g <- simplex_grid(3, 0.25)
+  expect_true(all(g >= 0))
+  expect_true(all(abs(rowSums(g) - 1) < 1e-10))
 })

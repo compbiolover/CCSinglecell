@@ -4,22 +4,28 @@
 \alias{optimize_weights}
 \title{Grid-search weight optimisation for gene rankings}
 \usage{
-optimize_weights(rankings, step_size = 0.1)
+optimize_weights(rankings, step_size = 0.1, max_combos = 20000L)
 }
 \arguments{
-\item{rankings}{A list of 2 or 3 named numeric vectors.}
+\item{rankings}{A list of two or more named numeric vectors.}
 
-\item{step_size}{Numeric step between 0 and 1 for weight grid
+\item{step_size}{Numeric step between 0 and 1 for the weight grid
 (default 0.1).}
+
+\item{max_combos}{Integer safety cap on the number of weight combinations
+(default 20000). Exceeding it is an error asking for a larger
+\code{step_size}, since a fine grid over many metrics explodes combinatorially.}
 }
 \value{
-A data frame with columns \code{w1}, \code{w2}, (optionally \code{w3}), and
-\code{ranking} (a list-column of named numeric vectors).
+A data frame with one weight column per metric (\code{w1}, \code{w2}, ...)
+and a \code{ranking} list-column of the combined named numeric vectors.
 }
 \description{
-Evaluates all weight combinations (in steps of \code{step_size}) for 2 or 3
-ranking metrics. For 2 metrics the weights are \verb{(w, 1-w)}. For 3 metrics
-all triplets \verb{(w1, w2, w3)} with \verb{w1 + w2 + w3 ≈ 1} are tested.
+Evaluates weight combinations on a simplex grid (weights non-negative and
+summing to 1, in steps of \code{step_size}) for any number of ranking metrics.
+For two metrics the weights are \verb{(w, 1 - w)}; for three metrics all valid
+triplets \verb{(w1, w2, w3)} are tested; and the same generalises to any number
+of metrics.
 }
 \examples{
 r1 <- c(A = 0.5, B = 0.3, C = 0.2)

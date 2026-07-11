@@ -46,6 +46,29 @@ Each metric is optional and additive:
 
 Present metrics are blended (equal weights by default, or pass `weights =`).
 
+## Score across arbitrary omics layers
+
+`score_gene_set()` covers the built-in metrics. For **truly multi-omics**
+scoring — any number of layers, any scoring function — use `score_multiomics()`
+with one `omics_block()` per layer. A block pairs an omics data object with a
+metric (a built-in name or your own `data -> named gene ranking` function):
+
+```r
+blocks <- list(
+  omics_block("expression",  expr, "mad"),
+  omics_block("mirna",        mir,  "mirna"),
+  omics_block("methylation",  meth, function(m) sort(apply(m, 1, sd), decreasing = TRUE)),
+  omics_block("cnv",          cnv,  function(m) sort(rowMeans(abs(m)), decreasing = TRUE))
+)
+scores <- score_multiomics(genes, blocks)      # weights default to equal
+plot_score_contributions(scores)               # per-layer decomposition
+```
+
+`combine_rankings()` and `optimize_weights()` are no longer capped at three
+metrics — they generalize to any number of layers. See `ROADMAP.md` for where
+this is heading (learned integration, regulatory-activity metrics, rigorous
+survival evaluation).
+
 ## Score a gene set from the command line
 
 The package installs an executable `ccscore`:

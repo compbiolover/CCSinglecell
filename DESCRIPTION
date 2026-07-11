@@ -1,6 +1,6 @@
 Package: CcSinglecell
 Title: Single-Cell and miRNA Integration for Colorectal Cancer Survival Prediction
-Version: 0.2.0
+Version: 0.3.0
 Authors@R:
     person("Andrew", "Willems", , "awillemscf@gmail.com", role = c("aut", "cre"))
 Description: Uses single-cell RNA-sequencing information and miRNA targeting
