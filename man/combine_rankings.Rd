@@ -2,12 +2,13 @@
 % Please edit documentation in R/optimize_weights.R
 \name{combine_rankings}
 \alias{combine_rankings}
-\title{Combine gene rankings with weighted linear combination}
+\title{Combine gene rankings with a weighted linear combination}
 \usage{
 combine_rankings(rankings, weights)
 }
 \arguments{
-\item{rankings}{A list of 2 or 3 named numeric vectors (gene rankings).}
+\item{rankings}{A list of two or more named numeric vectors (gene
+rankings), typically one per omics layer / metric.}
 
 \item{weights}{Numeric vector of the same length as \code{rankings}. Values
 should be non-negative; they are used as-is (caller controls the
@@ -18,7 +19,7 @@ A named numeric vector of combined scores sorted in decreasing
 order.
 }
 \description{
-Merges two or three named numeric ranking vectors using weights that
+Merges any number of named numeric ranking vectors using weights that
 sum to 1. Genes present in any input but absent from another receive a
 score of 0 for the missing metric.
 }
