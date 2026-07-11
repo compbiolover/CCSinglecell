@@ -29,12 +29,17 @@ weight. This is the same kind of matrix consumed by \code{\link[=calculate_mirna
 negative, correlations contribute evidence) or \code{"signed"} (positive
 correlations subtract, capturing net regulatory direction).}
 
-\item{normalize}{Logical; if \code{TRUE} (default), scores are normalized to sum
-to 1.}
+\item{normalize}{Logical; if \code{TRUE} (default), scores are divided by the sum
+of their absolute values. For \code{method = "anticorrelation"} scores are
+non-negative and therefore sum to 1; for \code{method = "signed"} scores may be
+negative, so they are put on a comparable scale but are not guaranteed to
+sum to 1.}
 }
 \value{
 A named numeric vector of miRNA-activity scores sorted in decreasing
-order. If \code{normalize = TRUE}, values sum to 1.
+order. When \code{normalize = TRUE}, non-negative (\code{"anticorrelation"}) scores
+sum to 1; signed scores are scaled by the sum of absolute values and may be
+negative.
 }
 \description{
 An expression-anchored alternative to \code{\link[=calculate_mirna]{calculate_mirna()}}. Instead of

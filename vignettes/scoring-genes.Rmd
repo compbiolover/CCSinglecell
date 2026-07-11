@@ -69,8 +69,8 @@ plot_score_contributions(scores, top_n = 15)
 metrics. To integrate *any* number of omics layers — including your own scoring
 functions — use `score_multiomics()` with one `omics_block()` per layer. Each
 block pairs a data object with a metric, which is either a built-in name
-(`"mad"`, `"mirna"`, `"switchde"`) or a function mapping the data to a named
-gene ranking.
+(`"mad"`, `"mirna"`, `"mirna_activity"`, `"switchde"`) or a function mapping the
+data to a named gene ranking.
 
 ```{r multiomics}
 # Treat the example expression matrix as a second "pseudo-omics" layer scored by

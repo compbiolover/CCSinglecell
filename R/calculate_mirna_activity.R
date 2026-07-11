@@ -21,11 +21,16 @@
 #' @param method Either `"anticorrelation"` (default; only repressive, i.e.
 #'   negative, correlations contribute evidence) or `"signed"` (positive
 #'   correlations subtract, capturing net regulatory direction).
-#' @param normalize Logical; if `TRUE` (default), scores are normalized to sum
-#'   to 1.
+#' @param normalize Logical; if `TRUE` (default), scores are divided by the sum
+#'   of their absolute values. For `method = "anticorrelation"` scores are
+#'   non-negative and therefore sum to 1; for `method = "signed"` scores may be
+#'   negative, so they are put on a comparable scale but are not guaranteed to
+#'   sum to 1.
 #'
 #' @return A named numeric vector of miRNA-activity scores sorted in decreasing
-#'   order. If `normalize = TRUE`, values sum to 1.
+#'   order. When `normalize = TRUE`, non-negative (`"anticorrelation"`) scores
+#'   sum to 1; signed scores are scaled by the sum of absolute values and may be
+#'   negative.
 #' @export
 #'
 #' @examples
@@ -61,6 +66,11 @@ calculate_mirna_activity <- function(
     stop("target_matrix must be a matrix or data.frame (genes x miRNAs)")
   }
   target_matrix <- as.matrix(target_matrix)
+  if (!is.numeric(target_matrix)) {
+    stop("target_matrix must be numeric (genes x miRNAs interaction weights); ",
+         "did a non-numeric column slip in, e.g. gene names not set as row ",
+         "names when reading a CSV?")
+  }
   if (is.null(rownames(target_matrix)) || is.null(colnames(target_matrix))) {
     stop("target_matrix must have gene row names and miRNA column names")
   }

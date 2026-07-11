@@ -60,6 +60,13 @@ test_that("calculate_mirna_activity validates inputs", {
     calculate_mirna_activity(d$mirna_expr, d$gene_expr, tm),
     "shares no genes"
   )
+  # Non-numeric target matrix (e.g. character columns from read.csv)
+  tm_char <- d$target_matrix
+  tm_char[] <- as.character(tm_char)
+  expect_error(
+    calculate_mirna_activity(d$mirna_expr, d$gene_expr, tm_char),
+    "must be numeric"
+  )
 })
 
 test_that("mirna_activity works as a built-in omics_block metric", {
