@@ -84,13 +84,16 @@ score_rankings <- function(genes, rankings, weights = NULL, renormalize = TRUE) 
   rankings <- Map(subset_metric, rankings, metrics)
 
   n_metrics <- length(rankings)
+  learned_var_explained <- NULL
   if (is.null(weights)) {
     weights <- rep(1 / n_metrics, n_metrics)
   } else if (is.character(weights)) {
     if (length(weights) != 1L || weights != "learn") {
       stop("character `weights` must be \"learn\"")
     }
-    weights <- as.numeric(learn_weights(rankings, method = "pca")[metrics])
+    learned <- learn_weights(rankings, method = "pca")
+    learned_var_explained <- attr(learned, "variance_explained")
+    weights <- as.numeric(learned[metrics])
   } else {
     if (length(weights) != n_metrics) {
       stop(
@@ -119,7 +122,11 @@ score_rankings <- function(genes, rankings, weights = NULL, renormalize = TRUE) 
   out$rank <- seq_len(nrow(out))
   rownames(out) <- NULL
 
-  attr(out, "weights") <- stats::setNames(weights, metrics)
+  weights_attr <- stats::setNames(weights, metrics)
+  if (!is.null(learned_var_explained)) {
+    attr(weights_attr, "variance_explained") <- learned_var_explained
+  }
+  attr(out, "weights") <- weights_attr
   attr(out, "metrics") <- metrics
   out
 }

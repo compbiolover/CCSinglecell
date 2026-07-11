@@ -45,6 +45,28 @@ test_that("score_rankings supports weights = 'learn'", {
   )
 })
 
+test_that("weights = 'learn' preserves the variance-explained metadata", {
+  r1 <- c(g1 = 0.4, g2 = 0.3, g3 = 0.2, g4 = 0.1)
+  r2 <- c(g1 = 0.35, g2 = 0.30, g3 = 0.25, g4 = 0.10)
+  sc <- score_rankings(c("g1", "g2", "g3", "g4"),
+    list(a = r1, b = r2), weights = "learn")
+  ve <- attr(attr(sc, "weights"), "variance_explained")
+  expect_true(is.numeric(ve) && !is.na(ve))
+})
+
+test_that("learn_weights validates its rankings", {
+  expect_error(
+    learn_weights(list(a = c(g1 = 1, g2 = 2), b = c(1, 2))),
+    "named numeric vector"
+  )
+  expect_error(
+    learn_weights(list(a = c(g1 = 1, g1 = 2), b = c(g1 = 1, g2 = 2))),
+    "duplicated gene"
+  )
+  dup <- list(x = c(g1 = 1, g2 = 2), x = c(g1 = 2, g2 = 1))
+  expect_error(learn_weights(dup), "must be unique")
+})
+
 test_that("score_multiomics and score_gene_set accept weights = 'learn'", {
   set.seed(1)
   genes <- paste0("g", 1:30)

@@ -38,6 +38,22 @@ learn_weights <- function(rankings, method = c("pca")) {
     stop("`rankings` must be named (one name per metric / omics layer)")
   }
   metrics <- names(rankings)
+  if (anyDuplicated(metrics)) {
+    stop("metric names must be unique; got: ", paste(metrics, collapse = ", "))
+  }
+  for (i in seq_along(rankings)) {
+    r <- rankings[[i]]
+    if (!is.numeric(r) || is.null(names(r))) {
+      stop("ranking '", metrics[i], "' must be a named numeric vector")
+    }
+    nm <- names(r)
+    if (any(!nzchar(nm)) || anyNA(nm)) {
+      stop("ranking '", metrics[i], "' has empty or missing gene names")
+    }
+    if (anyDuplicated(nm)) {
+      stop("ranking '", metrics[i], "' has duplicated gene names")
+    }
+  }
   n <- length(rankings)
 
   # One metric: it gets all the weight.
@@ -73,9 +89,9 @@ learn_weights <- function(rankings, method = c("pca")) {
 
   pca <- stats::prcomp(mat[, informative, drop = FALSE],
                        center = TRUE, scale. = TRUE)
+  # Weight each informative metric by its absolute loading on the first
+  # principal component; the sign of the axis does not affect the magnitude.
   loading <- pca$rotation[, 1L]
-  # Orient the axis so that larger scores mean "more important".
-  if (sum(loading) < 0) loading <- -loading
 
   weights <- stats::setNames(numeric(n), metrics)
   weights[informative] <- abs(loading)
