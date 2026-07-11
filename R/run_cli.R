@@ -110,6 +110,65 @@ read_expression_csv <- function(path) {
   mat
 }
 
+# Read a pseudotime vector aligned to the expression matrix columns. Accepts a
+# file with a numeric pseudotime column and, optionally, a cell-ID column used
+# to align to `cell_ids`. Falls back to positional order only when no ID column
+# matches, and then requires the lengths to agree. Errors on NA so switchDE is
+# never computed on silently misaligned pseudotime.
+read_pseudotime <- function(path, cell_ids) {
+  pt <- utils::read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
+
+  # Choose the value column: prefer one named "pseudotime", else the last
+  # numeric column.
+  lower <- tolower(names(pt))
+  if ("pseudotime" %in% lower) {
+    value_col <- which(lower == "pseudotime")[1L]
+  } else {
+    numeric_cols <- which(vapply(pt, is.numeric, logical(1L)))
+    if (length(numeric_cols) == 0L) {
+      stop("No numeric pseudotime column found in ", path)
+    }
+    value_col <- numeric_cols[length(numeric_cols)]
+  }
+  values <- as.numeric(pt[[value_col]])
+
+  # Align by any non-value column whose entries cover all expression cell IDs.
+  id_col <- NULL
+  for (j in seq_along(pt)) {
+    if (j == value_col) next
+    if (all(cell_ids %in% as.character(pt[[j]]))) {
+      id_col <- j
+      break
+    }
+  }
+  if (!is.null(id_col)) {
+    values <- values[match(cell_ids, as.character(pt[[id_col]]))]
+  } else if (length(values) != length(cell_ids)) {
+    stop("Pseudotime has ", length(values), " rows but the expression matrix ",
+         "has ", length(cell_ids), " cells, and no cell-ID column matched to ",
+         "align them. Provide a cell-ID column or matching row order.")
+  }
+  if (anyNA(values)) {
+    stop("Pseudotime contains missing (NA) values after alignment to cells.")
+  }
+  values
+}
+
+# Read a survival cohort CSV, using a leading ID column as row names when
+# present (e.g. patient IDs written by `write.csv(row.names = TRUE)`), so risk
+# outputs keep patient identifiers instead of row numbers.
+read_cohort_csv <- function(path) {
+  df <- utils::read.csv(path, check.names = FALSE, stringsAsFactors = FALSE)
+  first <- names(df)[1L]
+  looks_like_ids <- first %in% c("", "X") ||
+    (is.character(df[[1L]]) && anyDuplicated(df[[1L]]) == 0L)
+  if (looks_like_ids) {
+    rownames(df) <- as.character(df[[1L]])
+    df[[1L]] <- NULL
+  }
+  df
+}
+
 cli_score <- function(opts) {
   genes_path <- require_opt(opts, "genes", "score")
   expr_path <- require_opt(opts, "expression", "score")
@@ -121,8 +180,7 @@ cli_score <- function(opts) {
 
   pseudotime <- NULL
   if (!is.null(opts[["pseudotime"]])) {
-    pt <- utils::read.csv(opts[["pseudotime"]], check.names = FALSE)
-    pseudotime <- as.numeric(pt[[ncol(pt)]])
+    pseudotime <- read_pseudotime(opts[["pseudotime"]], colnames(expr))
   }
 
   mirna <- NULL
@@ -179,7 +237,7 @@ cli_survival <- function(opts) {
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
   genes <- read_gene_list(genes_path)
-  cox_df <- utils::read.csv(surv_path, check.names = FALSE)
+  cox_df <- read_cohort_csv(surv_path)
   alpha <- if (!is.null(opts[["alpha"]])) as.numeric(opts[["alpha"]]) else 1
 
   model <- fit_cox_model(cox_df, gene_names = genes, alpha = alpha)
