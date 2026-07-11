@@ -11,9 +11,10 @@
 #' @param rankings A **named** list of named numeric vectors. Each element is
 #'   one metric's genome-wide ranking; the list name becomes the metric's
 #'   column name in the output.
-#' @param weights Optional numeric vector of metric weights, one per element
-#'   of `rankings`, in list order. Defaults to equal weights. Rescaled to sum
-#'   to 1.
+#' @param weights Optional metric weights. Either a numeric vector (one per
+#'   element of `rankings`, in list order; rescaled to sum to 1), the string
+#'   `"learn"` to learn data-driven weights with [learn_weights()], or `NULL`
+#'   (default) for equal weights.
 #' @param renormalize Logical; if `TRUE` (default) each metric is renormalised
 #'   to sum to 1 across the requested gene set before combining.
 #'
@@ -83,8 +84,16 @@ score_rankings <- function(genes, rankings, weights = NULL, renormalize = TRUE) 
   rankings <- Map(subset_metric, rankings, metrics)
 
   n_metrics <- length(rankings)
+  learned_var_explained <- NULL
   if (is.null(weights)) {
     weights <- rep(1 / n_metrics, n_metrics)
+  } else if (is.character(weights)) {
+    if (length(weights) != 1L || weights != "learn") {
+      stop("character `weights` must be \"learn\"")
+    }
+    learned <- learn_weights(rankings, method = "pca")
+    learned_var_explained <- attr(learned, "variance_explained")
+    weights <- as.numeric(learned[metrics])
   } else {
     if (length(weights) != n_metrics) {
       stop(
@@ -113,7 +122,11 @@ score_rankings <- function(genes, rankings, weights = NULL, renormalize = TRUE) 
   out$rank <- seq_len(nrow(out))
   rownames(out) <- NULL
 
-  attr(out, "weights") <- stats::setNames(weights, metrics)
+  weights_attr <- stats::setNames(weights, metrics)
+  if (!is.null(learned_var_explained)) {
+    attr(weights_attr, "variance_explained") <- learned_var_explained
+  }
+  attr(out, "weights") <- weights_attr
   attr(out, "metrics") <- metrics
   out
 }
@@ -191,8 +204,9 @@ builtin_metric <- function(name) {
 #' @param genes A character vector of gene symbols, or a path to a gene file
 #'   (see [read_gene_list()]).
 #' @param blocks A list of [omics_block()] objects (one per omics layer).
-#' @param weights Optional numeric vector of per-block weights, in block
-#'   order. Defaults to equal weights.
+#' @param weights Optional per-block weights: a numeric vector (block order),
+#'   the string `"learn"` for data-driven weights (see [learn_weights()]), or
+#'   `NULL` (default) for equal weights.
 #' @param renormalize Logical; passed to [score_rankings()].
 #'
 #' @return A scored data frame, identical in shape to [score_gene_set()] but

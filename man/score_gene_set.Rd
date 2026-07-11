@@ -26,9 +26,10 @@ cell (length \code{ncol(expression_matrix)}). Enables the \code{switchde} metric
 \item{mirna_matrix}{Optional numeric matrix/data frame (genes x miRNAs) of
 interaction counts. Enables the \code{mirna} metric.}
 
-\item{weights}{Optional numeric vector of metric weights, one per available
-metric, in the order (mad, switchde, mirna) for the metrics that are
-present. Defaults to equal weights. Rescaled to sum to 1.}
+\item{weights}{Optional metric weights: a numeric vector (one per available
+metric, in the order (mad, switchde, mirna) for the metrics present), the
+string \code{"learn"} for data-driven weights (see \code{\link[=learn_weights]{learn_weights()}}), or
+\code{NULL} (default) for equal weights.}
 
 \item{renormalize}{Logical; if \code{TRUE} (default) each metric's scores are
 renormalised to sum to 1 \emph{across the requested gene set} before

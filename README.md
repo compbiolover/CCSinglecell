@@ -80,8 +80,24 @@ plot_score_contributions(scores)               # per-layer decomposition
 
 `combine_rankings()` and `optimize_weights()` are no longer capped at three
 metrics — they generalize to any number of layers. See `ROADMAP.md` for where
-this is heading (learned integration, regulatory-activity metrics, rigorous
-survival evaluation).
+this is heading (heavyweight MOFA/DIABLO backends, rigorous survival
+evaluation).
+
+### Learn the weights instead of guessing them
+
+Rather than equal weights or a grid search, let the data set the blend:
+
+```r
+scores <- score_multiomics(genes, blocks, weights = "learn")
+attr(scores, "weights")   # data-driven weights, one per layer
+```
+
+`weights = "learn"` (also accepted by `score_gene_set()`) calls
+`learn_weights()`, which runs a PCA on the gene-by-metric score matrix and
+weights each layer by its loading on the dominant shared axis of variation —
+so co-varying, informative metrics count more and flat/idiosyncratic ones count
+less. It's dependency-free; the heavier `MOFA2`/`mixOmics` (DIABLO) backends are
+on the roadmap.
 
 ## Score a gene set from the command line
 

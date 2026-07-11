@@ -31,9 +31,10 @@
 #'   cell (length `ncol(expression_matrix)`). Enables the `switchde` metric.
 #' @param mirna_matrix Optional numeric matrix/data frame (genes x miRNAs) of
 #'   interaction counts. Enables the `mirna` metric.
-#' @param weights Optional numeric vector of metric weights, one per available
-#'   metric, in the order (mad, switchde, mirna) for the metrics that are
-#'   present. Defaults to equal weights. Rescaled to sum to 1.
+#' @param weights Optional metric weights: a numeric vector (one per available
+#'   metric, in the order (mad, switchde, mirna) for the metrics present), the
+#'   string `"learn"` for data-driven weights (see [learn_weights()]), or
+#'   `NULL` (default) for equal weights.
 #' @param renormalize Logical; if `TRUE` (default) each metric's scores are
 #'   renormalised to sum to 1 *across the requested gene set* before
 #'   combining, so the combined score is a proportion within the set.

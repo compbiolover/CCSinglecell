@@ -58,12 +58,23 @@ bundled example data, and a working survival path.
 - Generic adapters so methylation (gene–methylation anti-correlation) and CNV
   (copy-number–expression correlation) enter as blocks with the same interface.
 
-### Phase 3 — Learned integration backends  *(v0.5.0)*
-- `score_multiomics(..., method = c("weighted", "mofa", "diablo"))` wrapping
-  `MOFA2` (unsupervised latent factors) and `mixOmics::block.splsda` (DIABLO,
-  supervised sparse multi-block selection) so integration weights are learned
-  from the data rather than grid-searched. Expose the learned loadings as the
-  per-gene attribution.
+### Phase 3a — Built-in learned integration  *(shipped, v0.5.0)*
+- **`learn_weights()`** — learn how much to weight each metric/omics layer from
+  the data instead of grid-searching with `optimize_weights()`. The default
+  `"pca"` method runs a PCA on the gene-by-metric score matrix and takes the
+  first principal component (the dominant shared axis) as the integration axis;
+  each metric's weight is its loading on that axis. Dependency-free.
+- Wired in everywhere as `weights = "learn"` (`score_gene_set()`,
+  `score_multiomics()`, `score_rankings()`).
+
+### Phase 3b — Heavyweight integration backends  *(planned, v0.5.x)*
+- `integrate_diablo()` / `integrate_mofa()` wrapping `mixOmics::block.splsda`
+  (DIABLO, supervised sparse multi-block selection) and `MOFA2` (unsupervised
+  latent factors), gated behind `Suggests`, exposing the learned loadings as the
+  per-gene attribution. Deferred from 3a because those packages (and MOFA2's
+  Python/reticulate backend) were not installable in the build environment, so
+  the wrappers could not be exercised end-to-end; 3a delivers the same
+  "learned, not grid-searched" capability with zero heavy dependencies.
 
 ### Phase 4 — Rigorous survival evaluation  *(v0.6.0)*
 - Bootstrap C-index confidence intervals, calibration curves, and a

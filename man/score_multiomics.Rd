@@ -12,8 +12,9 @@ score_multiomics(genes, blocks, weights = NULL, renormalize = TRUE)
 
 \item{blocks}{A list of \code{\link[=omics_block]{omics_block()}} objects (one per omics layer).}
 
-\item{weights}{Optional numeric vector of per-block weights, in block
-order. Defaults to equal weights.}
+\item{weights}{Optional per-block weights: a numeric vector (block order),
+the string \code{"learn"} for data-driven weights (see \code{\link[=learn_weights]{learn_weights()}}), or
+\code{NULL} (default) for equal weights.}
 
 \item{renormalize}{Logical; passed to \code{\link[=score_rankings]{score_rankings()}}.}
 }
