@@ -47,6 +47,11 @@ fit_cox_model <- function(
     stop("cox_df is missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
+  # Capture survival outcome before column names are sanitised (cleaning
+  # turns `days_to_last_follow_up`/`vital_status` into dotted names).
+  surv_time <- cox_df$days_to_last_follow_up
+  surv_event <- cox_df$vital_status
+
   # Sanitise gene names (match legacy behaviour: replace - _ / with .)
   clean <- function(x) gsub("[-_/]", ".", x)
   gene_names <- clean(gene_names)
@@ -61,10 +66,7 @@ fit_cox_model <- function(
   }
 
   x <- as.matrix(cox_df[, gene_names, drop = FALSE])
-  y <- survival::Surv(
-    time = cox_df$days_to_last_follow_up,
-    event = cox_df$vital_status
-  )
+  y <- survival::Surv(time = surv_time, event = surv_event)
 
   set.seed(seed)
   fold_ids <- sample(seq_len(nfolds), size = nrow(x), replace = TRUE)

@@ -1,0 +1,104 @@
+---
+title: "Scoring a set of genes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Scoring a set of genes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 5)
+```
+
+`CcSinglecell` grew out of a colorectal-cancer study that ranked genes by
+combining three signals — expression variability (MAD), switch-like dynamics
+along a pseudotime trajectory (switchDE), and cancer-miRNA targeting — and then
+tested how well the top genes stratified patient survival. This vignette shows
+how to score an arbitrary set of genes and visualize the result, either from R
+or from the command line.
+
+```{r load}
+library(CcSinglecell)
+```
+
+## Example data
+
+The package ships small, synthetic example files under `inst/extdata/`:
+
+```{r data}
+ext <- function(f) system.file("extdata", f, package = "CcSinglecell")
+
+expr  <- as.matrix(read.csv(ext("example_expression.csv"), row.names = 1, check.names = FALSE))
+mirna <- as.matrix(read.csv(ext("example_mirna.csv"), row.names = 1, check.names = FALSE))
+genes <- read_gene_list(ext("example_genes.csv"))
+
+dim(expr)
+head(genes)
+```
+
+## Score a gene set
+
+`score_gene_set()` computes each available metric genome-wide, restricts to the
+genes you asked about, and blends them into a single `combined` score. With only
+an expression matrix you get MAD scoring; add a miRNA matrix (and/or a pseudotime
+vector) to bring in the other metrics.
+
+```{r score}
+scores <- score_gene_set(genes, expr, mirna_matrix = mirna)
+head(scores)
+attr(scores, "weights")
+```
+
+## Visualize the scores
+
+```{r plot-scores}
+plot_gene_scores(scores, top_n = 15)
+```
+
+The stacked contribution plot shows how much each metric drives each gene's
+combined score:
+
+```{r plot-contrib}
+plot_score_contributions(scores, top_n = 15)
+```
+
+## From the command line
+
+The same workflow is available as a `ccscore` executable installed with the
+package:
+
+```sh
+ccscore score \
+  --genes      example_genes.csv \
+  --expression example_expression.csv \
+  --mirna      example_mirna.csv \
+  --out        results/
+```
+
+This writes `results/scores.csv`, `results/gene_scores.png`, and
+`results/score_contributions.png`. Find the installed script with:
+
+```{r cli-path, eval = FALSE}
+system.file("bin", "ccscore", package = "CcSinglecell")
+```
+
+## Optional: survival stratification
+
+If you also have a survival data frame (patients in rows; gene-expression
+columns plus `days_to_last_follow_up` and `vital_status`), you can fit a
+penalized Cox model on the gene set and draw a Kaplan-Meier curve. This mirrors
+the paper's primary result.
+
+```{r survival, eval = requireNamespace("survminer", quietly = TRUE) && requireNamespace("glmnet", quietly = TRUE)}
+cox_df <- read.csv(ext("example_survival.csv"), row.names = 1, check.names = FALSE)
+model  <- fit_cox_model(cox_df, gene_names = genes)
+risk   <- calculate_risk_scores(cox_df, model$active_genes, model$coefficients)
+plot_km_curve(risk, title = "Example cohort")
+```
+
+The equivalent command is:
+
+```sh
+ccscore survival --genes example_genes.csv --survival example_survival.csv --out results/
+```
