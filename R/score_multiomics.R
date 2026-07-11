@@ -167,11 +167,17 @@ builtin_metric <- function(name) {
     name,
     mad = function(data) calculate_mad(data, normalize = TRUE),
     mirna = function(data) calculate_mirna(data, normalize = TRUE),
+    mirna_activity = function(data) {
+      calculate_mirna_activity(
+        data$mirna_expr, data$gene_expr, data$target_matrix,
+        normalize = TRUE
+      )
+    },
     switchde = function(data) {
       calculate_switchde(data$expression, data$pseudotime, normalize = TRUE)
     },
     stop("Unknown built-in metric: '", name,
-         "'. Known metrics: mad, mirna, switchde")
+         "'. Known metrics: mad, mirna, mirna_activity, switchde")
   )
 }
 

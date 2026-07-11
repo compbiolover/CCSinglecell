@@ -89,6 +89,37 @@ longer capped at three metrics, so methylation, CNV, or proteomics layers plug
 in the same way. See `ROADMAP.md` for the planned learned-integration and
 regulatory-activity backends.
 
+### Expression-anchored miRNA activity
+
+The bundled `example_mirna.csv` is a *predicted* interaction map (how many
+cancer miRNAs are annotated to target each gene). `calculate_mirna_activity()`
+goes further: given matched miRNA and gene expression, it scores genes by the
+*observed* anti-correlation with their targeting miRNAs — repression you can
+actually see in the samples, rather than annotation alone.
+
+```{r mirna-activity}
+mirna_expr <- as.matrix(read.csv(ext("example_mirna_expression.csv"),
+  row.names = 1, check.names = FALSE))
+target <- as.matrix(read.csv(ext("example_mirna.csv"),
+  row.names = 1, check.names = FALSE))
+gene_expr <- as.matrix(read.csv(ext("example_expression.csv"),
+  row.names = 1, check.names = FALSE))
+
+activity <- calculate_mirna_activity(mirna_expr, gene_expr, target)
+head(activity)
+```
+
+Drop it into a multi-omics run as its own block:
+
+```{r mirna-activity-block}
+block <- omics_block(
+  "mirna_activity",
+  list(mirna_expr = mirna_expr, gene_expr = gene_expr, target_matrix = target),
+  "mirna_activity"
+)
+head(score_multiomics(genes, list(omics_block("variability", gene_expr, "mad"), block)))
+```
+
 ## From the command line
 
 The same workflow is available as a `ccscore` executable installed with the

@@ -2,6 +2,7 @@
 
 export(calculate_mad)
 export(calculate_mirna)
+export(calculate_mirna_activity)
 export(calculate_risk_scores)
 export(calculate_switchde)
 export(combine_rankings)
