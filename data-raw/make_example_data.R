@@ -103,6 +103,20 @@ surv_df <- data.frame(
 )
 write.csv(surv_df, file.path(out_dir, "example_survival.csv"))
 
+# --- Matched miRNA expression (for the expression-anchored activity metric) --
+# Shares the single-cell sample columns of the expression matrix so miRNA and
+# gene expression can be correlated per sample.
+mirna_expr <- matrix(
+  rnorm(length(mirnas) * n_cells, mean = 5, sd = 1),
+  nrow = length(mirnas), ncol = n_cells,
+  dimnames = list(mirnas, colnames(expr))
+)
+# Make a couple of cancer miRNAs strongly anti-correlated with signal genes they
+# target, so the activity metric has genuine repression signal to recover.
+mirna_expr["miR-34a", ] <- 10 - 0.4 * expr["TP53", ] + rnorm(n_cells, sd = 0.5)
+mirna_expr["miR-143", ] <- 10 - 0.4 * expr["KRAS", ] + rnorm(n_cells, sd = 0.5)
+write.csv(mirna_expr, file.path(out_dir, "example_mirna_expression.csv"))
+
 message("Wrote example data to ", normalizePath(out_dir))
 message("  genes: ", n_genes, "  cells: ", n_cells,
         "  patients: ", n_patients)

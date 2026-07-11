@@ -38,11 +38,25 @@ plot_score_contributions(scores, top_n = 15)
 
 Each metric is optional and additive:
 
-| Metric      | Enabled by            | Captures                              |
-|-------------|-----------------------|---------------------------------------|
-| MAD         | always                | expression variability                |
-| switchDE    | `pseudotime =`        | switch-like dynamics along a trajectory |
-| miRNA       | `mirna_matrix =`      | cancer-miRNA targeting                 |
+| Metric          | Enabled by         | Captures                                  |
+|-----------------|--------------------|-------------------------------------------|
+| MAD             | always             | expression variability                    |
+| switchDE        | `pseudotime =`     | switch-like dynamics along a trajectory   |
+| miRNA           | `mirna_matrix =`   | cancer-miRNA targeting (predicted counts) |
+| miRNA activity  | `omics_block(…, "mirna_activity")` | *observed* miRNA repression (anti-correlation) |
+
+`calculate_mirna_activity()` is the expression-anchored upgrade to the simple
+target-count metric: given matched miRNA and gene expression plus a predicted
+interaction map, it scores each gene by how strongly it is actually
+anti-correlated with its targeting cancer miRNAs in your samples (a
+ceRNA/repression-evidence view). Unlike the other metrics it is not a
+`score_gene_set()` argument; use it via `score_multiomics()` as its own block:
+
+```r
+omics_block("mirna_activity",
+  list(mirna_expr = mir_expr, gene_expr = gene_expr, target_matrix = targets),
+  "mirna_activity")
+```
 
 Present metrics are blended (equal weights by default, or pass `weights =`).
 
