@@ -89,6 +89,18 @@ longer capped at three metrics, so methylation, CNV, or proteomics layers plug
 in the same way. See `ROADMAP.md` for the planned learned-integration and
 regulatory-activity backends.
 
+### Learning the weights
+
+Instead of equal weights or a grid search, `weights = "learn"` lets the data
+choose the blend via `learn_weights()`: a PCA on the gene-by-metric score
+matrix weights each layer by its loading on the dominant shared axis of
+variation.
+
+```{r learn-weights}
+learned <- score_multiomics(genes, blocks, weights = "learn")
+attr(learned, "weights")
+```
+
 ### Expression-anchored miRNA activity
 
 The bundled `example_mirna.csv` is a *predicted* interaction map (how many

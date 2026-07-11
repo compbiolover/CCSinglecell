@@ -14,9 +14,10 @@ score_rankings(genes, rankings, weights = NULL, renormalize = TRUE)
 one metric's genome-wide ranking; the list name becomes the metric's
 column name in the output.}
 
-\item{weights}{Optional numeric vector of metric weights, one per element
-of \code{rankings}, in list order. Defaults to equal weights. Rescaled to sum
-to 1.}
+\item{weights}{Optional metric weights. Either a numeric vector (one per
+element of \code{rankings}, in list order; rescaled to sum to 1), the string
+\code{"learn"} to learn data-driven weights with \code{\link[=learn_weights]{learn_weights()}}, or \code{NULL}
+(default) for equal weights.}
 
 \item{renormalize}{Logical; if \code{TRUE} (default) each metric is renormalised
 to sum to 1 across the requested gene set before combining.}
