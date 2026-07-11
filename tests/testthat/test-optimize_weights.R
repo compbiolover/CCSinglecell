@@ -107,3 +107,22 @@ test_that("simplex_grid rows are non-negative and sum to 1", {
   expect_true(all(g >= 0))
   expect_true(all(abs(rowSums(g) - 1) < 1e-10))
 })
+
+test_that("combine_rankings validates rankings and weights", {
+  r1 <- c(A = 0.5, B = 0.5)
+  r2 <- c(A = 0.3, B = 0.7)
+  expect_error(combine_rankings(list(r1, r2), c(0.5, NA)), "no missing")
+  expect_error(combine_rankings(list(r1, r2), c(-0.1, 1.1)), "non-negative")
+  dup <- c(A = 0.5, A = 0.5)
+  expect_error(combine_rankings(list(dup, r2), c(0.5, 0.5)), "duplicated gene")
+  unnamed <- c(0.5, 0.5)
+  expect_error(
+    combine_rankings(list(unnamed, r2), c(0.5, 0.5)),
+    "named numeric vector"
+  )
+})
+
+test_that("optimize_weights requires step_size to divide 1", {
+  rankings <- list(c(A = 0.5, B = 0.5), c(A = 0.3, B = 0.7))
+  expect_error(optimize_weights(rankings, step_size = 0.3), "evenly divide 1")
+})

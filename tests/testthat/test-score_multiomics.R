@@ -85,6 +85,39 @@ test_that("score_rankings works directly on precomputed rankings", {
   )
 })
 
+test_that("score_rankings rejects reserved and duplicate metric names", {
+  r1 <- c(g1 = 0.5, g2 = 0.5)
+  r2 <- c(g1 = 0.3, g2 = 0.7)
+  expect_error(
+    score_rankings(c("g1", "g2"), list(gene = r1, other = r2)),
+    "reserved output columns"
+  )
+  dup <- list(a = r1, a = r2)
+  expect_error(score_rankings(c("g1", "g2"), dup), "must be unique")
+})
+
+test_that("score_rankings rejects unnamed rankings", {
+  bad <- list(a = c(0.5, 0.5), b = c(g1 = 0.3, g2 = 0.7))
+  expect_error(
+    score_rankings(c("g1", "g2"), bad),
+    "named numeric vector"
+  )
+})
+
+test_that("renormalize = TRUE rejects negative scores", {
+  r1 <- c(g1 = 0.5, g2 = 0.5)
+  r2 <- c(g1 = -0.3, g2 = 0.7)
+  expect_error(
+    score_rankings(c("g1", "g2"), list(a = r1, b = r2), renormalize = TRUE),
+    "non-negative scores"
+  )
+  # With renormalize = FALSE the signed metric is allowed through.
+  expect_s3_class(
+    score_rankings(c("g1", "g2"), list(a = r1, b = r2), renormalize = FALSE),
+    "data.frame"
+  )
+})
+
 test_that("score_gene_set remains a special case of the multi-omics engine", {
   d <- make_layers()
   via_wrapper <- score_gene_set(d$genes, d$expr, mirna_matrix = d$mir)

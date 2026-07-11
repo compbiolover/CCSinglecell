@@ -25,6 +25,25 @@ combine_rankings <- function(rankings, weights) {
   if (length(weights) != length(rankings)) {
     stop("weights must have the same length as rankings")
   }
+  if (!is.numeric(weights) || anyNA(weights)) {
+    stop("weights must be numeric with no missing values")
+  }
+  if (any(weights < 0)) {
+    stop("weights must be non-negative")
+  }
+  for (i in seq_along(rankings)) {
+    r <- rankings[[i]]
+    if (!is.numeric(r) || is.null(names(r))) {
+      stop("ranking ", i, " must be a named numeric vector")
+    }
+    nm <- names(r)
+    if (any(!nzchar(nm)) || anyNA(nm)) {
+      stop("ranking ", i, " has empty or missing gene names")
+    }
+    if (anyDuplicated(nm)) {
+      stop("ranking ", i, " has duplicated gene names")
+    }
+  }
 
   all_genes <- unique(unlist(lapply(rankings, names)))
   scores <- numeric(length(all_genes))
@@ -67,17 +86,30 @@ optimize_weights <- function(rankings, step_size = 0.1, max_combos = 20000L) {
   if (!is.list(rankings) || n < 2L) {
     stop("rankings must contain two or more vectors")
   }
-  if (step_size <= 0 || step_size > 1) {
-    stop("step_size must be in (0, 1]")
+  if (!is.numeric(step_size) || length(step_size) != 1L ||
+      step_size <= 0 || step_size > 1) {
+    stop("step_size must be a single number in (0, 1]")
+  }
+  k <- 1 / step_size
+  if (abs(k - round(k)) > 1e-8) {
+    stop("step_size must evenly divide 1 (e.g. 0.1, 0.2, 0.25, 0.5); got ",
+         step_size)
+  }
+  k <- round(k)
+
+  # Size the grid combinatorially BEFORE enumerating it: the number of weight
+  # vectors is the number of compositions of k into n parts, C(k + n - 1, n - 1).
+  # This guards against enumerating (and allocating) a grid that would blow up.
+  n_combos <- choose(k + n - 1L, n - 1L)
+  if (n_combos > max_combos) {
+    stop(
+      "Weight grid would have ", format(n_combos, scientific = FALSE),
+      " combinations for ", n, " metrics at step_size ", step_size,
+      ", exceeding max_combos (", max_combos, "). Use a larger step_size."
+    )
   }
 
   grid <- simplex_grid(n, step_size)
-  if (nrow(grid) > max_combos) {
-    stop(
-      "Weight grid has ", nrow(grid), " combinations for ", n, " metrics, ",
-      "exceeding max_combos (", max_combos, "). Use a larger step_size."
-    )
-  }
 
   results <- vector("list", nrow(grid))
   for (i in seq_len(nrow(grid))) {

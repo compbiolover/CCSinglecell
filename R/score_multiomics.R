@@ -38,6 +38,23 @@ score_rankings <- function(genes, rankings, weights = NULL, renormalize = TRUE) 
     stop("`rankings` must be named (one name per metric / omics layer)")
   }
   metrics <- names(rankings)
+  if (anyDuplicated(metrics)) {
+    stop("metric names must be unique; got: ", paste(metrics, collapse = ", "))
+  }
+  reserved <- c("gene", "combined", "rank")
+  if (any(metrics %in% reserved)) {
+    stop("metric names must not collide with reserved output columns (",
+         paste(reserved, collapse = ", "), ")")
+  }
+  for (m in metrics) {
+    r <- rankings[[m]]
+    if (!is.numeric(r) || is.null(names(r))) {
+      stop("ranking '", m, "' must be a named numeric vector")
+    }
+    if (any(!nzchar(names(r))) || anyNA(names(r))) {
+      stop("ranking '", m, "' has empty or missing gene names")
+    }
+  }
 
   missing_all <- setdiff(genes, unique(unlist(lapply(rankings, names))))
   if (length(missing_all) > 0L) {
@@ -48,17 +65,22 @@ score_rankings <- function(genes, rankings, weights = NULL, renormalize = TRUE) 
     )
   }
 
-  subset_metric <- function(r) {
+  subset_metric <- function(r, metric) {
     v <- r[genes]
     v[is.na(v)] <- 0
     names(v) <- genes
     if (renormalize) {
+      if (any(v < 0)) {
+        stop("renormalize = TRUE requires non-negative scores, but metric '",
+             metric, "' has negative values. Set renormalize = FALSE for ",
+             "signed metrics.")
+      }
       total <- sum(v)
       if (total > 0) v <- v / total
     }
     v
   }
-  rankings <- lapply(rankings, subset_metric)
+  rankings <- Map(subset_metric, rankings, metrics)
 
   n_metrics <- length(rankings)
   if (is.null(weights)) {
@@ -194,10 +216,10 @@ score_multiomics <- function(genes, blocks, weights = NULL, renormalize = TRUE) 
     stop("every element of `blocks` must be an omics_block (see omics_block())")
   }
 
-  names <- vapply(blocks, function(b) b$name, character(1L))
-  if (anyDuplicated(names)) {
+  block_names <- vapply(blocks, function(b) b$name, character(1L))
+  if (anyDuplicated(block_names)) {
     stop("omics_block names must be unique; got: ",
-         paste(names, collapse = ", "))
+         paste(block_names, collapse = ", "))
   }
 
   rankings <- lapply(blocks, function(b) {
@@ -208,7 +230,7 @@ score_multiomics <- function(genes, blocks, weights = NULL, renormalize = TRUE) 
     }
     r
   })
-  names(rankings) <- names
+  names(rankings) <- block_names
 
   score_rankings(genes, rankings, weights = weights, renormalize = renormalize)
 }
