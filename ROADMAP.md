@@ -67,14 +67,18 @@ bundled example data, and a working survival path.
 - Wired in everywhere as `weights = "learn"` (`score_gene_set()`,
   `score_multiomics()`, `score_rankings()`).
 
-### Phase 3b — Heavyweight integration backends  *(planned, v0.5.x)*
-- `integrate_diablo()` / `integrate_mofa()` wrapping `mixOmics::block.splsda`
-  (DIABLO, supervised sparse multi-block selection) and `MOFA2` (unsupervised
-  latent factors), gated behind `Suggests`, exposing the learned loadings as the
-  per-gene attribution. Deferred from 3a because those packages (and MOFA2's
-  Python/reticulate backend) were not installable in the build environment, so
-  the wrappers could not be exercised end-to-end; 3a delivers the same
-  "learned, not grid-searched" capability with zero heavy dependencies.
+### Phase 3b — Heavyweight integration backends  *(shipped, v0.5.2)*
+- **`integrate_diablo()`** — wraps `mixOmics::block.splsda` (DIABLO, supervised
+  sparse multi-block selection). Learns directly from the raw omics blocks
+  against a response and exposes the learned loadings as a single per-gene (and
+  per-miRNA) attribution ranking that plugs straight into `score_rankings()`.
+  Gated behind `Suggests: mixOmics`.
+- **`integrate_mofa()`** — wraps `MOFA2::run_mofa` (unsupervised latent factors).
+  Needs no outcome; pools the learned per-view factor weights into the same
+  per-gene attribution ranking. Gated behind `Suggests: MOFA2` and a Python
+  `mofapy2` backend (via `reticulate`; auto-discovers a `r-mofapy2` virtualenv,
+  or `use_basilisk = TRUE`). `learn_weights(method = "pca")` remains the
+  dependency-free unsupervised stand-in when the Python backend is unavailable.
 
 ### Phase 4 — Rigorous survival evaluation  *(v0.6.0)*
 - Bootstrap C-index confidence intervals, calibration curves, and a
