@@ -121,6 +121,25 @@ attr_scores <- integrate_mofa(list(rna = rna, mir = mir))
 `MOFA2` and a Python `mofapy2` backend (via `reticulate` — it auto-discovers a
 `r-mofapy2` virtualenv, or set `use_basilisk = TRUE`).
 
+### Validate a signature against a clinical baseline
+
+Finding a signature is easy; earning it is not. `validate_survival()` fits a Cox
+model on your candidate genes and reports a bootstrap C-index **next to a
+clinical-only baseline** (and the two combined), with held-out evaluation and a
+calibration table:
+
+```r
+v <- validate_survival(
+  train, predictors = signature_genes, clinical = c("age", "stage"),
+  test = held_out, horizon = 365 * 3
+)
+v                    # C-index (bootstrap 95% CI) for signature / clinical / combined
+plot_calibration(v)  # predicted vs observed survival at the horizon
+```
+
+If the signature can't clear the clinical baseline out-of-sample, that's the
+harness doing its job — not a bug.
+
 ## Score a gene set from the command line
 
 The package installs an executable `ccscore`:
