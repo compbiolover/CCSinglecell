@@ -80,10 +80,21 @@ bundled example data, and a working survival path.
   or `use_basilisk = TRUE`). `learn_weights(method = "pca")` remains the
   dependency-free unsupervised stand-in when the Python backend is unavailable.
 
-### Phase 4 — Rigorous survival evaluation  *(v0.6.0)*
-- Bootstrap C-index confidence intervals, calibration curves, and a
-  train-cohort → external-cohort validation harness built into the survival
-  path; always report against a clinical-only baseline.
+### Phase 4 — Rigorous survival evaluation  *(shipped, v0.6.0)*
+- **`validate_survival()`** — the honesty harness: fits a Cox model on the
+  signature, reports a bootstrap C-index (via **`cindex_ci()`**) **always beside
+  a clinical-only baseline** and the two combined, supports train → external
+  (held-out) evaluation, and emits a calibration table at a time horizon
+  (**`plot_calibration()`** draws predicted-vs-observed).
+- **`cv_validate_survival()`** — the well-powered version: repeated k-fold CV
+  with penalized (elastic-net) Cox, selecting-and-shrinking the signature inside
+  each fold, reporting the paired `combined − clinical` C-index gain with a
+  percentile interval and win-rate.
+- Applied to TCGA-COAD/READ (n=350, 78 events, 10×5-fold): age+stage alone give
+  C≈0.69; an elastic-net over **1,800 mRNA+miRNA features adds ΔC = −0.001
+  [−0.004, +0.003]** — i.e. nothing beyond clinical. The Phase-3b biology is real
+  structure but not independent prognostic value, and the harness is how you tell
+  the difference.
 
 ### Phase 5 — Deep integration + interpretability  *(v0.7.0)*
 - Optional autoencoder embedding of the joined omics → Cox head (via
