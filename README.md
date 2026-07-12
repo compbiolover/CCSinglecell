@@ -96,8 +96,30 @@ attr(scores, "weights")   # data-driven weights, one per layer
 `learn_weights()`, which runs a PCA on the gene-by-metric score matrix and
 weights each layer by its loading on the dominant shared axis of variation —
 so co-varying, informative metrics count more and flat/idiosyncratic ones count
-less. It's dependency-free; the heavier `MOFA2`/`mixOmics` (DIABLO) backends are
-on the roadmap.
+less. It's dependency-free and unsupervised.
+
+For a *supervised*, outcome-aware alternative, `integrate_diablo()` fits DIABLO
+(`mixOmics::block.splsda`) on the raw omics blocks against a response and returns
+the learned per-gene (and per-miRNA) loadings as a ranking you can feed straight
+back into `score_rankings()`:
+
+```r
+# blocks: samples x features; grp: a per-sample class label (e.g. high/low risk)
+attr_scores <- integrate_diablo(list(rna = rna, mir = mir), grp)
+```
+
+For an *unsupervised* alternative, `integrate_mofa()` fits MOFA
+(`MOFA2::run_mofa`) — latent factors of coordinated variation across the omics
+layers, no outcome needed — and returns the per-gene/per-miRNA factor weights as
+a ranking:
+
+```r
+attr_scores <- integrate_mofa(list(rna = rna, mir = mir))
+```
+
+`integrate_diablo()` is gated behind `mixOmics`; `integrate_mofa()` behind
+`MOFA2` and a Python `mofapy2` backend (via `reticulate` — it auto-discovers a
+`r-mofapy2` virtualenv, or set `use_basilisk = TRUE`).
 
 ## Score a gene set from the command line
 
