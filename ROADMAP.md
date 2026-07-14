@@ -96,6 +96,33 @@ bundled example data, and a working survival path.
   structure but not independent prognostic value, and the harness is how you tell
   the difference.
 
+### Phase 4b — Interrogating the null  *(this PR, v0.6.1)*
+Phase 4 produced an honest null (ΔC ≈ 0 for genomics over clinical). A null is
+only useful if you can say *why* it happened — no signal, or no power? These
+diagnostics answer that, each reusing the `cv_validate_survival()` engine so the
+verdicts are directly comparable:
+- **`assess_null()`** — a permutation test for the `combined − clinical`
+  increment. It permutes **only the genomic block** (leaving the clinical ↔
+  outcome signal and the fold structure intact), so it isolates the increment
+  genomics claims to add and returns a one-sided empirical p-value. This
+  separates "no signal" from "signal too small to matter here."
+- **`power_curve()`** — a semi-synthetic detectable-effect analysis. Preserving
+  the real clinical predictor, *n*, and event rate, it injects a synthetic
+  prognostic feature of known strength and measures how often the harness
+  recovers a positive gain, reporting the **minimum detectable effect** at a
+  target power. The null becomes *bounded*, not merely absent.
+- **`learning_curve()`** — out-of-fold C-index vs training-set size. A still-
+  rising `combined` curve marks a **power-limited** null (a larger cohort could
+  yet expose a gain); a plateau marks a **signal-limited** one. Usually the most
+  convincing single figure that a null is real.
+- Companion plots: `plot_null_assessment()`, `plot_power_curve()`,
+  `plot_learning_curve()`.
+
+The takeaway: the TCGA-COAD/READ null isn't a dead end for the pipeline, it's a
+*calibrated* result. Reporting it with a permutation p-value, a detectable-effect
+floor, and a learning curve is a defensible scientific contribution — and the
+same machinery flags the moment a future cohort or endpoint *does* clear the bar.
+
 ### Phase 5 — Deep integration + interpretability  *(v0.7.0)*
 - Optional autoencoder embedding of the joined omics → Cox head (via
   `reticulate`), with SHAP-style per-gene attributions so the model stays
