@@ -140,6 +140,42 @@ plot_calibration(v)  # predicted vs observed survival at the horizon
 If the signature can't clear the clinical baseline out-of-sample, that's the
 harness doing its job — not a bug.
 
+### Interrogate a null result
+
+A `ΔC ≈ 0` is only the beginning of the story: it doesn't say *why*. Is there
+genuinely no signal, or was the cohort too small and censored to detect the
+signal that exists? Three diagnostics turn a bare null into a defensible,
+quantified claim — all driven by the same penalized-CV engine as
+`cv_validate_survival()`:
+
+```r
+# 1. Is the observed gain any bigger than a randomly aligned block? (p-value)
+assess_null(d, predictors = signature, clinical = c("age", "stage"), n_perm = 200)
+
+# 2. What ΔC could this cohort even have detected? (the detectable floor)
+power_curve(d, predictors = signature, clinical = c("age", "stage"))
+
+# 3. Is the null power-limited (curve still rising) or signal-limited (plateaued)?
+plot_learning_curve(learning_curve(d, predictors = signature, clinical = c("age", "stage")))
+```
+
+- **`assess_null()`** permutes only the genomic block (keeping the clinical ↔
+  outcome signal intact) and returns a one-sided permutation p-value for the
+  `combined − clinical` gain. A large p means the observed increment is
+  indistinguishable from a random block of the same size.
+- **`power_curve()`** injects a synthetic prognostic feature of known strength
+  into the outcome and measures how often the harness recovers it, reporting the
+  **minimum detectable effect** at a target power. It bounds the null: "a true
+  gain below ΔC ≈ *x* would have been missed here."
+- **`learning_curve()`** traces out-of-fold C-index against training-set size. A
+  `combined` curve still climbing at full *n* is **power-limited** (more data
+  could help); a plateau is **signal-limited** (it won't).
+
+Together these let you report a null the field can trust: *the increment isn't
+significant (p), the cohort could only have seen effects above a floor (power),
+and discrimination has/​hasn't plateaued (learning curve).* A reproducible null
+is a result, not a dead end.
+
 ## Score a gene set from the command line
 
 The package installs an executable `ccscore`:
