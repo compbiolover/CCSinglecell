@@ -14,6 +14,12 @@
 #' zero penalty factor). One C-index per model per repeat gives a distribution,
 #' not a single fragile number.
 #'
+#' With `group` (for example a cohort or site column), folds are no longer
+#' random: each group is held out once, the models are trained on all other
+#' groups, and the C-index is computed within the held-out group. This is
+#' internal-external validation, which tests whether the signature transports
+#' across cohorts rather than across random splits of one pooled sample.
+#'
 #' @param data Data frame: one row per subject with `time`, `event`,
 #'   `predictors`, and `clinical` columns.
 #' @param predictors Character vector of candidate genomic feature columns
@@ -26,6 +32,10 @@
 #' @param alpha Elastic-net mixing parameter for the penalized fits (default
 #'   0.5; 1 = lasso, 0 = ridge).
 #' @param seed Random seed (default 1).
+#' @param group Optional column name holding a grouping such as cohort. When
+#'   given, `n_folds` and `n_repeats` are ignored and each group is held out
+#'   once (leave-one-group-out); `per_repeat` then has one row per held-out
+#'   group, and intervals and win-rate are taken across groups.
 #'
 #' @return An object of class `cv_survival_validation`: a list with `cindex` (a
 #'   data frame — `signature`, `clinical`, `combined` — each with the mean C and
@@ -49,7 +59,7 @@
 #' }
 cv_validate_survival <- function(data, predictors, clinical, time = "time",
                                  event = "event", n_folds = 5L, n_repeats = 10L,
-                                 alpha = 0.5, seed = 1L) {
+                                 alpha = 0.5, seed = 1L, group = NULL) {
   if (!requireNamespace("glmnet", quietly = TRUE)) {
     stop("cv_validate_survival() requires the 'glmnet' package.")
   }
@@ -58,7 +68,7 @@ cv_validate_survival <- function(data, predictors, clinical, time = "time",
     stop("`clinical` is required — this function exists to test the signature ",
          "against a clinical baseline")
   }
-  need <- c(time, event, predictors, clinical)
+  need <- c(time, event, predictors, clinical, group)
   miss <- setdiff(need, colnames(data))
   if (length(miss) > 0L) {
     stop("data is missing columns: ", paste(utils::head(miss, 5L), collapse = ", "))
@@ -70,7 +80,9 @@ cv_validate_survival <- function(data, predictors, clinical, time = "time",
   keep <- is.finite(tt) & tt > 0 & !is.na(ee)
   data <- data[keep, , drop = FALSE]; tt <- tt[keep]; ee <- ee[keep]
   n <- nrow(data)
-  if (n < 3L * n_folds) stop("too few complete cases for ", n_folds, "-fold CV")
+  if (is.null(group) && n < 3L * n_folds) {
+    stop("too few complete cases for ", n_folds, "-fold CV")
+  }
 
   Xp <- as.matrix(data[, predictors, drop = FALSE])
   Xc <- as.matrix(data[, clinical, drop = FALSE])
@@ -94,23 +106,41 @@ cv_validate_survival <- function(data, predictors, clinical, time = "time",
     fold
   }
 
-  Cmat <- matrix(NA_real_, n_repeats, 3L,
-    dimnames = list(NULL, c("signature", "clinical", "combined")))
-  for (r in seq_len(n_repeats)) {
-    fold <- make_folds(seed + r)
-    lp_sig <- lp_clin <- lp_comb <- rep(NA_real_, n)
-    for (k in seq_len(n_folds)) {
-      te <- which(fold == k); tr_ <- which(fold != k)
-      y_tr <- y[tr_]
-      lp_sig[te]  <- pen_lp(Xp[tr_, , drop = FALSE], y_tr, Xp[te, , drop = FALSE])
-      lp_comb[te] <- pen_lp(cbind(Xc, Xp)[tr_, , drop = FALSE], y_tr,
-                            cbind(Xc, Xp)[te, , drop = FALSE], pen_combined)
-      cfit <- survival::coxph(y_tr ~ Xc[tr_, , drop = FALSE])
-      lp_clin[te] <- as.numeric(Xc[te, , drop = FALSE] %*% stats::coef(cfit))
+  # out-of-fold linear predictors of the three models for test rows `te`
+  fold_lp <- function(tr_, te) {
+    y_tr <- y[tr_]
+    cfit <- survival::coxph(y_tr ~ Xc[tr_, , drop = FALSE])
+    list(
+      signature = pen_lp(Xp[tr_, , drop = FALSE], y_tr, Xp[te, , drop = FALSE]),
+      clinical = as.numeric(Xc[te, , drop = FALSE] %*% stats::coef(cfit)),
+      combined = pen_lp(cbind(Xc, Xp)[tr_, , drop = FALSE], y_tr,
+                        cbind(Xc, Xp)[te, , drop = FALSE], pen_combined)
+    )
+  }
+  models <- c("signature", "clinical", "combined")
+
+  if (is.null(group)) {
+    Cmat <- matrix(NA_real_, n_repeats, 3L, dimnames = list(NULL, models))
+    for (r in seq_len(n_repeats)) {
+      fold <- make_folds(seed + r)
+      lp <- matrix(NA_real_, n, 3L, dimnames = list(NULL, models))
+      for (k in seq_len(n_folds)) {
+        te <- which(fold == k)
+        lp[te, ] <- do.call(cbind, fold_lp(which(fold != k), te))
+      }
+      Cmat[r, ] <- apply(lp, 2L, function(v) harrell_c(tt, ee, v))
     }
-    Cmat[r, "signature"] <- harrell_c(tt, ee, lp_sig)
-    Cmat[r, "clinical"]  <- harrell_c(tt, ee, lp_clin)
-    Cmat[r, "combined"]  <- harrell_c(tt, ee, lp_comb)
+  } else {
+    g <- as.character(data[[group]])
+    groups <- sort(unique(g))
+    if (length(groups) < 2L) stop("`group` needs at least 2 distinct values")
+    set.seed(seed)
+    Cmat <- matrix(NA_real_, length(groups), 3L, dimnames = list(groups, models))
+    for (h in groups) {
+      te <- which(g == h)
+      Cmat[h, ] <- vapply(fold_lp(which(g != h), te),
+        function(v) harrell_c(tt[te], ee[te], v), numeric(1L))
+    }
   }
 
   q <- function(v) stats::quantile(v, c(.025, .975), na.rm = TRUE)
@@ -130,7 +160,8 @@ cv_validate_survival <- function(data, predictors, clinical, time = "time",
   structure(list(
     cindex = cindex, delta = delta, per_repeat = Cmat,
     meta = list(n = n, n_folds = n_folds, n_repeats = n_repeats,
-      n_predictors = length(predictors), n_clinical = length(clinical), alpha = alpha)
+      n_predictors = length(predictors), n_clinical = length(clinical), alpha = alpha,
+      group = group)
   ), class = "cv_survival_validation")
 }
 
@@ -139,17 +170,26 @@ cv_validate_survival <- function(data, predictors, clinical, time = "time",
 #' @export
 print.cv_survival_validation <- function(x, ...) {
   m <- x$meta
-  cat(sprintf(
-    "Repeated CV survival validation | %d x %d-fold | n=%d | %d genomic vs %d clinical | alpha=%g\n",
-    m$n_repeats, m$n_folds, m$n, m$n_predictors, m$n_clinical, m$alpha
-  ))
+  grouped <- !is.null(m$group)
+  unit <- if (grouped) "held-out groups" else "repeats"
+  if (grouped) {
+    cat(sprintf(
+      "Leave-one-%s-out survival validation | %d groups | n=%d | %d genomic vs %d clinical | alpha=%g\n",
+      m$group, nrow(x$per_repeat), m$n, m$n_predictors, m$n_clinical, m$alpha
+    ))
+  } else {
+    cat(sprintf(
+      "Repeated CV survival validation | %d x %d-fold | n=%d | %d genomic vs %d clinical | alpha=%g\n",
+      m$n_repeats, m$n_folds, m$n, m$n_predictors, m$n_clinical, m$alpha
+    ))
+  }
   ci <- x$cindex
   ci[, c("cindex", "lower", "upper")] <- round(ci[, c("cindex", "lower", "upper")], 3)
-  cat("\nOut-of-fold C-index (mean [2.5%, 97.5%] across repeats):\n")
+  cat(sprintf("\nOut-of-fold C-index (mean [2.5%%, 97.5%%] across %s):\n", unit))
   print(ci, row.names = FALSE)
   cat(sprintf(
-    "\nAdding genomics to clinical: dC = %+.3f [%+.3f, %+.3f], wins %d%% of repeats\n",
-    x$delta$mean, x$delta$lower, x$delta$upper, round(100 * x$delta$win_rate)
+    "\nAdding genomics to clinical: dC = %+.3f [%+.3f, %+.3f], wins %d%% of %s\n",
+    x$delta$mean, x$delta$lower, x$delta$upper, round(100 * x$delta$win_rate), unit
   ))
   if (x$delta$lower <= 0) {
     cat("=> interval includes 0: no reliable improvement over clinical alone.\n")

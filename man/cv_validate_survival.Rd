@@ -6,7 +6,8 @@
 \title{Repeated cross-validated survival validation (penalized)}
 \usage{
 cv_validate_survival(data, predictors, clinical, time = "time",
-  event = "event", n_folds = 5L, n_repeats = 10L, alpha = 0.5, seed = 1L)
+  event = "event", n_folds = 5L, n_repeats = 10L, alpha = 0.5, seed = 1L,
+  group = NULL)
 }
 \arguments{
 \item{data}{Data frame: one row per subject with \code{time}, \code{event},
@@ -27,6 +28,11 @@ to beat). Required — the whole point is the comparison.}
 0.5; 1 = lasso, 0 = ridge).}
 
 \item{seed}{Random seed (default 1).}
+
+\item{group}{Optional column name holding a grouping such as cohort. When
+given, \code{n_folds} and \code{n_repeats} are ignored and each group is held out
+once (leave-one-group-out); \code{per_repeat} then has one row per held-out
+group, and intervals and win-rate are taken across groups.}
 }
 \value{
 An object of class \code{cv_survival_validation}: a list with \code{cindex} (a
@@ -51,6 +57,12 @@ out-of-fold linear predictor from three models — the genomic \code{signature}
 Cox), and \code{combined} (elastic-net Cox with the clinical terms forced in via a
 zero penalty factor). One C-index per model per repeat gives a distribution,
 not a single fragile number.
+
+With \code{group} (for example a cohort or site column), folds are no longer
+random: each group is held out once, the models are trained on all other
+groups, and the C-index is computed within the held-out group. This is
+internal-external validation, which tests whether the signature transports
+across cohorts rather than across random splits of one pooled sample.
 }
 \examples{
 \donttest{

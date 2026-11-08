@@ -21,13 +21,6 @@
 #' time <- rexp(200, rate = exp(0.8 * risk))
 #' event <- rbinom(200, 1, 0.7)
 #' cindex_ci(time, event, risk, n_boot = 200)
-# Harrell's C for a risk score (higher = worse survival). Internal.
-harrell_c <- function(time, event, risk) {
-  survival::concordance(
-    survival::Surv(time, event) ~ risk, reverse = TRUE
-  )$concordance
-}
-
 cindex_ci <- function(time, event, risk, n_boot = 1000L, conf = 0.95, seed = 1L) {
   ok <- is.finite(time) & is.finite(as.numeric(event)) & is.finite(risk) & time > 0
   time <- time[ok]
@@ -48,6 +41,13 @@ cindex_ci <- function(time, event, risk, n_boot = 1000L, conf = 0.95, seed = 1L)
   a <- (1 - conf) / 2
   ci <- stats::quantile(boot, c(a, 1 - a), na.rm = TRUE)
   c(cindex = est, lower = unname(ci[1L]), upper = unname(ci[2L]))
+}
+
+# Harrell's C for a risk score (higher = worse survival). Internal.
+harrell_c <- function(time, event, risk) {
+  survival::concordance(
+    survival::Surv(time, event) ~ risk, reverse = TRUE
+  )$concordance
 }
 
 #' Rigorously validate a survival signature
